@@ -4,6 +4,8 @@ A local macOS app with a **versioned library of ready project skeletons**. Pick 
 
 AI agents (Claude Code, Codex) use fastDev through its MCP server: they create projects for you and maintain the library — new skeletons, new versions, forks, dependency updates.
 
+![The fastDev library: skeleton cards with their stacks, versions and filters by language and category](docs/images/library.webp)
+
 - Product specification: [`SPEC.md`](SPEC.md)
 - Rules for agents developing fastDev: [`AGENTS.md`](AGENTS.md)
 - Authoring skeletons: [`docs/skeleton-authoring.md`](docs/skeleton-authoring.md), manifest: [`docs/manifest.md`](docs/manifest.md)
