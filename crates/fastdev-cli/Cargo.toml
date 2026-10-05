@@ -1,0 +1,20 @@
+[package]
+name = "fastdev-cli"
+description = "Headless fastDev commands for agents and CI"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "fastdev-cli"
+path = "src/main.rs"
+
+[dependencies]
+fastdev-core.workspace = true
+fastdev-protocol.workspace = true
+nix.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

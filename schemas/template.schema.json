@@ -1,0 +1,537 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fastdev.local/schemas/template.schema.json",
+  "title": "fastDev skeleton manifest (template.toml)",
+  "description": "Reference: docs/manifest.md",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "id",
+    "name"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1,
+      "description": "Manifest format version."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z](?:[a-z0-9]|-(?=[a-z0-9])){0,63}$",
+      "description": "Must equal the skeleton folder name."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "category": {
+      "enum": [
+        "web",
+        "desktop",
+        "cli",
+        "library",
+        "mobile",
+        "other"
+      ],
+      "default": "other"
+    },
+    "languages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "stack": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "forked_from": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "requirements": {
+      "$ref": "#/$defs/requirements"
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "default": {
+            "type": "boolean"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requirements": {
+            "$ref": "#/$defs/requirements"
+          },
+          "env": {
+            "$ref": "#/$defs/templates"
+          }
+        }
+      }
+    },
+    "choices": {
+      "type": "object",
+      "description": "Single-choice options, e.g. how Docker is used. Each option can add files, env and requirements and replace setup steps and commands.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "default",
+          "options"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "default": {
+            "type": "string",
+            "description": "Key of the default option."
+          },
+          "when": {
+            "type": "object",
+            "description": "Shown only when earlier choices have one of these values.",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
+          "options": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "$ref": "#/$defs/choiceOption"
+            }
+          }
+        }
+      }
+    },
+    "env": {
+      "$ref": "#/$defs/templates"
+    },
+    "ports": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 65535
+      }
+    },
+    "secrets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 256
+      }
+    },
+    "set": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file",
+          "path",
+          "value"
+        ],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "File to edit, relative to the project. JSON or TOML: *.json, *.toml, Cargo.lock, uv.lock, poetry.lock, pdm.lock, composer.lock, or any file with `format`."
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "Keys from the root. `key[field=value]` selects the element of an array of objects/tables whose `field` equals `value` (e.g. [\"package[name=app]\", \"name\"] in Cargo.lock)."
+          },
+          "value": {
+            "type": "string"
+          },
+          "format": {
+            "enum": [
+              "json",
+              "toml"
+            ],
+            "description": "File format when it cannot be inferred from the name."
+          },
+          "feature": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "setup": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "label",
+          "run"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "run": {
+            "type": "string"
+          },
+          "feature": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "run"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "run": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "long": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": "string"
+          },
+          "primary": {
+            "type": "boolean"
+          },
+          "feature": {
+            "type": "string"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/commandInput"
+            },
+            "description": "Values asked for before each run (a form in the app, `inputs` in MCP), passed as environment variables."
+          }
+        }
+      }
+    },
+    "verify": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "variants": {
+          "type": "array",
+          "description": "Extra choice combinations to verify besides the defaults.",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How to preview the skeleton without creating a project.",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Command key to run. Default: the primary command."
+        },
+        "url": {
+          "type": "string",
+          "description": "What to open; ${VAR} comes from the preview's .env."
+        },
+        "path": {
+          "type": "string",
+          "description": "File or folder to show, relative to the preview project."
+        },
+        "message": {
+          "type": "string",
+          "description": "What to do next."
+        },
+        "cleanup": {
+          "type": "string",
+          "description": "Shell command run in the preview copy before it is deleted (e.g. removing ~/Library folders a desktop app created). Options add their own cleanup."
+        }
+      }
+    },
+    "translations": {
+      "type": "object",
+      "description": "Translations of user-facing texts (name, description, feature/choice/option/command/setup labels and descriptions, preview message): language code → English text → translation. fastDev's UI languages: ru.",
+      "propertyNames": {
+        "pattern": "^[a-z]{2}(-[A-Z]{2})?$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      }
+    },
+    "updates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ecosystem"
+      ],
+      "properties": {
+        "ecosystem": {
+          "enum": [
+            "npm"
+          ]
+        },
+        "hold": {
+          "type": "object",
+          "description": "Package → semver range to stay within (e.g. typescript = \"<6.1\"). Newer versions are reported as held and skipped by level updates.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "requirements": {
+      "type": "object",
+      "description": "Tool name → semver requirement, e.g. node = \">=24\".",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "templates": {
+      "type": "object",
+      "description": "Key → minijinja template value.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "choiceOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requirements": {
+          "$ref": "#/$defs/requirements"
+        },
+        "drop_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Base requirements that do not apply with this option."
+        },
+        "env": {
+          "$ref": "#/$defs/templates"
+        },
+        "ports": {
+          "type": "object",
+          "description": "Extra [ports] allocated only with this option.",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          }
+        },
+        "setup": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "label",
+              "run"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "run": {
+                "type": "string"
+              },
+              "feature": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Replaces the base [[setup]] steps."
+        },
+        "commands": {
+          "type": "object",
+          "description": "Overrides fields of base commands with the same key, or adds commands (then `run` is required).",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "run": {
+                "type": "string",
+                "description": "Shell command; \"\" removes the base command for this option."
+              },
+              "description": {
+                "type": "string"
+              },
+              "long": {
+                "type": "boolean"
+              },
+              "url": {
+                "type": "string"
+              },
+              "primary": {
+                "type": "boolean"
+              },
+              "feature": {
+                "type": "string"
+              },
+              "inputs": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/commandInput"
+                },
+                "description": "Values asked for before each run (a form in the app, `inputs` in MCP), passed as environment variables."
+              }
+            }
+          }
+        },
+        "cleanup": {
+          "type": "string",
+          "description": "Shell command run after a verification or when a preview with this option is deleted (e.g. `docker compose down -v --rmi local`)."
+        },
+        "verify_cleanup": {
+          "type": "string",
+          "deprecated": true,
+          "description": "Old name of `cleanup`."
+        },
+        "preview": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Overrides fields of [preview] with this option.",
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "commandInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "label"
+      ],
+      "description": "A value asked for before each run, passed as an environment variable.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "description": "Environment variable name; use it quoted in run: \"$NAME\"."
+        },
+        "label": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "default": {
+          "type": "string",
+          "description": "Initial value of the field."
+        },
+        "optional": {
+          "type": "boolean",
+          "description": "May be left empty (inputs are required by default)."
+        }
+      }
+    }
+  }
+}

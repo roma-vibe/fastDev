@@ -1,0 +1,185 @@
+@import 'tailwindcss';
+
+/* Dark mode follows the data-theme attribute set from settings (light / dark / system). */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+ * Design tokens. The window background is native macOS glass (NSGlassEffectView / vibrancy);
+ * the webview is transparent and draws translucent layers on top of it.
+ */
+:root {
+  color-scheme: light;
+  --fd-window: linear-gradient(140deg, #dfe6f3 0%, #ebe7f4 55%, #e3eef0 100%);
+  --fd-sidebar: transparent;
+  --fd-content: rgb(250 250 252 / 0.9);
+  --fd-surface: rgb(255 255 255 / 0.72);
+  --fd-surface-strong: rgb(255 255 255 / 0.92);
+  --fd-fill: rgb(20 20 40 / 0.055);
+  --fd-fill-2: rgb(20 20 40 / 0.09);
+  --fd-hairline: rgb(20 20 40 / 0.075);
+  --fd-text: #1d1d1f;
+  --fd-text-2: #4e4e55;
+  --fd-text-3: #8a8a92;
+  --fd-accent: #2f6df6;
+  --fd-accent-hover: #2560e0;
+  --fd-accent-soft: #adc6f8;
+  --fd-accent-fg: #0b1733;
+  --fd-success: #28a745;
+  --fd-warning: #d97706;
+  --fd-danger: #e5383b;
+  --fd-highlight: inset 0 1px 0 rgb(255 255 255 / 0.85);
+  --fd-shadow: 0 1px 2px rgb(15 20 40 / 0.05), 0 10px 30px rgb(15 20 40 / 0.08);
+  --fd-shadow-lg: 0 2px 6px rgb(15 20 40 / 0.06), 0 30px 80px rgb(15 20 40 / 0.18);
+  --fd-backdrop: rgb(240 242 247 / 0.45);
+  --fd-console: rgb(20 22 30 / 0.035);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --fd-window: linear-gradient(140deg, #1b1d26 0%, #221c2b 55%, #16222a 100%);
+  --fd-content: rgb(28 28 33 / 0.82);
+  --fd-surface: rgb(255 255 255 / 0.055);
+  --fd-surface-strong: rgb(52 52 60 / 0.92);
+  --fd-fill: rgb(255 255 255 / 0.07);
+  --fd-fill-2: rgb(255 255 255 / 0.12);
+  --fd-hairline: rgb(255 255 255 / 0.085);
+  --fd-text: #f4f4f6;
+  --fd-text-2: #b8b8c0;
+  --fd-text-3: #7d7d87;
+  --fd-accent: #4b8bff;
+  --fd-accent-hover: #6a9fff;
+  --fd-accent-soft: #34507f;
+  --fd-accent-fg: #eaf1ff;
+  --fd-success: #3fce6a;
+  --fd-warning: #f5a524;
+  --fd-danger: #ff5a5f;
+  --fd-highlight: inset 0 1px 0 rgb(255 255 255 / 0.07);
+  --fd-shadow: 0 1px 2px rgb(0 0 0 / 0.25), 0 10px 30px rgb(0 0 0 / 0.25);
+  --fd-shadow-lg: 0 2px 6px rgb(0 0 0 / 0.3), 0 30px 80px rgb(0 0 0 / 0.45);
+  --fd-backdrop: rgb(10 10 14 / 0.4);
+  --fd-console: rgb(0 0 0 / 0.22);
+}
+
+/* Solid fallbacks when the user asks macOS to reduce transparency. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --fd-content: #f7f7f9;
+    --fd-surface: #ffffff;
+  }
+  [data-theme='dark'] {
+    --fd-content: #1e1e22;
+    --fd-surface: #2a2a30;
+  }
+}
+
+@theme inline {
+  --color-content: var(--fd-content);
+  --color-surface: var(--fd-surface);
+  --color-surface-strong: var(--fd-surface-strong);
+  --color-fill: var(--fd-fill);
+  --color-fill-2: var(--fd-fill-2);
+  --color-hairline: var(--fd-hairline);
+  --color-fg: var(--fd-text);
+  --color-fg-2: var(--fd-text-2);
+  --color-fg-3: var(--fd-text-3);
+  --color-accent: var(--fd-accent);
+  --color-accent-hover: var(--fd-accent-hover);
+  --color-accent-soft: var(--fd-accent-soft);
+  --color-accent-fg: var(--fd-accent-fg);
+  --color-success: var(--fd-success);
+  --color-warning: var(--fd-warning);
+  --color-danger: var(--fd-danger);
+  --color-console: var(--fd-console);
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, Menlo, Monaco, monospace;
+  --radius-panel: 22px;
+  --radius-card: 18px;
+  --radius-control: 12px;
+  --shadow-panel: var(--fd-shadow);
+  --shadow-float: var(--fd-shadow-lg);
+  --shadow-highlight: var(--fd-highlight);
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: transparent;
+  color: var(--fd-text);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+  overflow: hidden;
+}
+
+/* In a browser (UI preview) or without native glass, paint a soft gradient instead. */
+html.no-glass body {
+  background: var(--fd-window);
+}
+
+input,
+textarea,
+select,
+.selectable {
+  user-select: text;
+  cursor: auto;
+}
+
+button {
+  cursor: default;
+}
+
+/* Glass surface: translucent layer, blur of what is behind, specular top edge. */
+@utility glass {
+  background: var(--fd-surface);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--fd-hairline);
+  box-shadow: var(--fd-highlight), var(--fd-shadow);
+}
+
+@utility glass-strong {
+  background: var(--fd-surface-strong);
+  -webkit-backdrop-filter: blur(40px) saturate(190%);
+  backdrop-filter: blur(40px) saturate(190%);
+  border: 1px solid var(--fd-hairline);
+  box-shadow: var(--fd-highlight), var(--fd-shadow-lg);
+}
+
+@utility focus-ring {
+  outline: none;
+  &:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fd-accent) 35%, transparent);
+  }
+}
+
+/* Thin, unobtrusive scrollbars. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--fd-fill-2);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
