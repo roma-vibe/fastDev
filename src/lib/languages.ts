@@ -8,8 +8,11 @@ const LANGUAGES: Record<string, { name: string; short: string; from: string; to:
   php: { name: 'PHP', short: 'PHP', from: '#8e97e8', to: '#5b63c9' },
   python: { name: 'Python', short: 'PY', from: '#4f9bdc', to: '#e8c24a' },
   go: { name: 'Go', short: 'GO', from: '#5ad1e6', to: '#1a9fc1' },
+  dart: { name: 'Dart', short: 'DA', from: '#40c4ff', to: '#0175c2' },
 }
 
 export function language(id: string): { name: string; short: string; from: string; to: string } {
-  return LANGUAGES[id] ?? { name: id, short: id.slice(0, 2).toUpperCase(), from: '#a0a4b8', to: '#747a94' }
+  // Languages without an entry still read as names: `kotlin` → `Kotlin`.
+  const name = id.charAt(0).toUpperCase() + id.slice(1)
+  return LANGUAGES[id] ?? { name, short: id.slice(0, 2).toUpperCase(), from: '#a0a4b8', to: '#747a94' }
 }
