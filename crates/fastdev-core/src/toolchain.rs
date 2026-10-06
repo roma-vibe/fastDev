@@ -158,16 +158,47 @@ fn detect_uncached(tool: &str) -> ToolInfo {
         "zip" | "unzip" => "-v",
         _ => "--version",
     };
-    let output = Command::new(&path).arg(arg).envs(child_env()).stdin(Stdio::null()).output().ok();
-    let text = output
-        .map(|o| format!("{}\n{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)))
-        .unwrap_or_default();
+    let mut command = Command::new(&path);
+    command.arg(arg).envs(child_env());
+    let text = output_within(command, VERSION_TIMEOUT).unwrap_or_default();
     ToolInfo {
         name: tool.into(),
         found: true,
         version: parse_version(&text),
         path: Some(path.to_string_lossy().into_owned()),
     }
+}
+
+/// How long `<tool> --version` may take. Some SDK launchers do network work first
+/// (`flutter --version` on a fresh git checkout fetches tags), which must not block the catalog.
+const VERSION_TIMEOUT: Duration = Duration::from_secs(20);
+
+/// Runs `command` and returns stdout and stderr, or `None` when it fails to start or exceeds `timeout`
+/// (then it is killed; output readers of grandchildren that keep the pipes open are left to finish).
+fn output_within(mut command: Command, timeout: Duration) -> Option<String> {
+    let mut child = command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().ok()?;
+    let read = |mut pipe: Box<dyn Read + Send>| {
+        std::thread::spawn(move || {
+            let mut buf = Vec::new();
+            let _ = pipe.read_to_end(&mut buf);
+            String::from_utf8_lossy(&buf).into_owned()
+        })
+    };
+    let stdout = read(Box::new(child.stdout.take()?));
+    let stderr = read(Box::new(child.stderr.take()?));
+    let deadline = Instant::now() + timeout;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(20)),
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
+            }
+        }
+    }
+    Some(format!("{}\n{}", stdout.join().ok()?, stderr.join().ok()?))
 }
 
 fn chrome_binary() -> Option<PathBuf> {
@@ -348,6 +379,19 @@ pub fn overview() -> Vec<ToolInfo> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn version_commands_time_out() {
+        let mut quick = Command::new("/bin/sh");
+        quick.args(["-c", "echo v1.2.3; echo warn >&2"]);
+        let text = output_within(quick, Duration::from_secs(5)).unwrap();
+        assert!(text.contains("v1.2.3") && text.contains("warn"));
+        let mut slow = Command::new("/bin/sleep");
+        slow.arg("5");
+        let started = Instant::now();
+        assert!(output_within(slow, Duration::from_millis(200)).is_none());
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
 
     #[test]
     fn parses_versions() {

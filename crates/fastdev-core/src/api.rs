@@ -1214,6 +1214,7 @@ impl Core {
             features: a.features.clone(),
             choices: a.choices.clone(),
         };
+        let explicit_slug = options.slug.as_deref().is_some_and(|s| !s.trim().is_empty());
         let slug = generator::resolve_slug(&options)?;
         let resolved = manifest.resolve(&manifest.select(&options.features, &options.choices)?);
         let parent = a
@@ -1226,12 +1227,10 @@ impl Core {
         if !parent.is_absolute() {
             return Err(Error::invalid("parent_dir must be an absolute path"));
         }
-        let project_dir = parent.join(&slug);
-        generator::check_target(&project_dir)?;
-        if self.registry.find_by_path(&project_dir.to_string_lossy())?.is_some() {
-            return Err(Error::conflict(format!("{} is already registered", project_dir.display())));
-        }
-        let claim = self.claim_project_dir(&project_dir)?;
+        let (slug, claim) = self.claim_project(&parent, &slug, explicit_slug)?;
+        let project_dir = claim.dir.clone();
+        let mut options = options;
+        options.slug = Some(slug);
 
         let mut steps: Vec<String> = vec!["Check requirements".into(), "Copy files".into()];
         let setup_steps = resolved.setup.clone();
@@ -1371,7 +1370,44 @@ impl Core {
         Ok(json!({ "project": self.project_view(record), "setupStatus": setup_status }))
     }
 
+    /// Reserves a slug and its folder in `parent` for one creation job. The slug names the folder,
+    /// `COMPOSE_PROJECT_NAME` and other per-project resources, so it must be unique among registered
+    /// projects and running creations: a taken derived slug gets a `-2`, `-3`… suffix, a taken
+    /// explicit slug is an error.
+    fn claim_project(self: &Arc<Self>, parent: &Path, slug: &str, explicit: bool) -> Result<(String, ProjectClaim)> {
+        let mut creating = self.creating.lock().expect("creating");
+        let mut used: HashSet<String> = self.registry.list()?.into_iter().map(|p| p.slug).collect();
+        used.extend(creating.keys().filter_map(|dir| dir.file_name()).map(|n| n.to_string_lossy().into_owned()));
+        let slug = if !used.contains(slug) {
+            slug.to_string()
+        } else if explicit {
+            return Err(Error::conflict(format!(
+                "slug \"{slug}\" is already used by another project; choose a different slug"
+            )));
+        } else {
+            (2..)
+                .map(|n| {
+                    let suffix = format!("-{n}");
+                    let base = slug[..slug.len().min(64 - suffix.len())].trim_end_matches(['-', '.', '_']);
+                    format!("{base}{suffix}")
+                })
+                .find(|candidate| !used.contains(candidate))
+                .expect("a free slug")
+        };
+        let dir = parent.join(&slug);
+        generator::check_target(&dir)?;
+        if self.registry.find_by_path(&dir.to_string_lossy())?.is_some() {
+            return Err(Error::conflict(format!("{} is already registered", dir.display())));
+        }
+        if creating.contains_key(&dir) {
+            return Err(Error::conflict(format!("{} is already being created", dir.display())));
+        }
+        creating.insert(dir.clone(), HashSet::new());
+        Ok((slug, ProjectClaim { core: Arc::downgrade(self), dir }))
+    }
+
     /// Reserves `dir` for one creation job; the claim is released when the job ends.
+    #[cfg(test)]
     fn claim_project_dir(self: &Arc<Self>, dir: &Path) -> Result<ProjectClaim> {
         let mut creating = self.creating.lock().expect("creating");
         if creating.contains_key(dir) {
@@ -1685,8 +1721,8 @@ mod tests {
         let core = test_core(tmp.path());
         let parent = tmp.path().join("projects");
         let create = |slug: &str| {
-            let args = json!({ "skeleton": "sample", "version": "draft", "name": slug, "parent_dir": parent,
-                               "git": false, "wait_seconds": 0 });
+            let args = json!({ "skeleton": "sample", "version": "draft", "name": slug, "slug": slug,
+                               "parent_dir": parent, "git": false, "wait_seconds": 0 });
             core.call("create_project", args, Caller::Cli)
         };
         let finish = |job: &Value| {
@@ -1710,6 +1746,20 @@ mod tests {
         assert!(core.claim_project_dir(&parent.join("three")).is_err());
         drop(claim);
         assert!(core.claim_project_dir(&parent.join("three")).is_ok());
+
+        // Slugs stay unique across folders: a derived slug gets a suffix, an explicit one is refused.
+        let elsewhere = tmp.path().join("elsewhere");
+        let args = |extra: Value| {
+            let mut args = json!({ "skeleton": "sample", "version": "draft", "name": "One", "parent_dir": elsewhere,
+                                   "git": false, "install": false, "wait_seconds": 60 });
+            args.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+            args
+        };
+        let job = core.call("create_project", args(json!({})), Caller::Cli).unwrap();
+        assert_eq!(job["result"]["project"]["slug"], "one-2");
+        assert!(elsewhere.join("one-2/README.md").is_file());
+        let err = core.call("create_project", args(json!({ "slug": "two" })), Caller::Cli).unwrap_err();
+        assert_eq!(err.code, crate::error::ErrorCode::Conflict);
     }
 
     #[test]

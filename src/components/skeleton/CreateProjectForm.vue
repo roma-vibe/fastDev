@@ -10,8 +10,9 @@ import UiInput from '@/components/ui/UiInput.vue'
 import UiTextarea from '@/components/ui/UiTextarea.vue'
 import UiToggleRow from '@/components/ui/UiToggleRow.vue'
 import { st, t } from '@/i18n'
-import { isValidSlug, slugify } from '@/lib/slug'
+import { isValidSlug, slugify, uniqueSlug } from '@/lib/slug'
 import { useJobsStore } from '@/stores/jobs'
+import { useProjectsStore } from '@/stores/projects'
 import { useSettingsStore } from '@/stores/settings'
 import { useToastStore } from '@/stores/toasts'
 import { useRunsStore } from '@/stores/runs'
@@ -23,6 +24,7 @@ const props = defineProps<{ details: SkeletonDetails }>()
 
 const settings = useSettingsStore()
 const jobs = useJobsStore()
+const projects = useProjectsStore()
 const toasts = useToastStore()
 
 const name = ref('')
@@ -93,8 +95,10 @@ watch(
   },
   { deep: true, immediate: true },
 )
-watch(name, (value) => {
-  if (!slugEdited.value) slug.value = slugify(value)
+/** Slugs of registered projects: a slug also names the project's Docker resources, so it must be unique. */
+const takenSlugs = computed(() => new Set(projects.projects.map((p) => p.slug)))
+watch([name, takenSlugs], ([value, taken]) => {
+  if (!slugEdited.value) slug.value = uniqueSlug(slugify(value), taken)
 })
 watch(agentsMd, (value) => {
   if (!value) claudeMd.value = false
@@ -104,11 +108,17 @@ const isDraft = computed(() => props.details.target === 'draft')
 const targetPath = computed(() =>
   parent.value && slug.value ? `${parent.value.replace(/\/$/, '')}/${slug.value}` : '',
 )
-const slugError = computed(() =>
-  slug.value && !isValidSlug(slug.value)
-    ? t('Use lowercase latin letters, digits, dashes, dots or underscores')
+const nameError = computed(() =>
+  name.value.includes("'") && name.value.includes('"')
+    ? t('Use either single or double quotes, not both')
     : null,
 )
+const slugError = computed(() => {
+  if (!slug.value) return null
+  if (!isValidSlug(slug.value)) return t('Use lowercase latin letters, digits, dashes, dots or underscores')
+  if (takenSlugs.value.has(slug.value)) return t('Another project already uses this slug')
+  return null
+})
 const requirements = computed(() => resolved.value?.requirements ?? props.details.requirements)
 /** Missing tools that setup needs; other missing tools are only warnings. */
 const missing = computed(() => requirements.value.filter((r) => !r.satisfied && r.neededForSetup !== false))
@@ -119,6 +129,7 @@ const canCreate = computed(
   () =>
     !isDraft.value &&
     name.value.trim().length > 0 &&
+    !nameError.value &&
     !!slug.value &&
     !slugError.value &&
     !!parent.value &&
@@ -173,6 +184,7 @@ async function create(): Promise<void> {
       <UiField
         :label="t('Project name')"
         :hint="t('Any language. It goes into APP_NAME in .env and .env.example.')"
+        :error="nameError"
       >
         <UiInput v-model="name" :placeholder="t('My new project')" autofocus />
       </UiField>

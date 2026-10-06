@@ -51,6 +51,16 @@ export function slugify(name: string): string {
     .replace(/-+$/g, '')
 }
 
+/** The first of `slug`, `slug-2`, `slug-3`… not in `taken` (mirrors the core's choice for a derived slug). */
+export function uniqueSlug(slug: string, taken: ReadonlySet<string>): string {
+  if (!slug || !taken.has(slug)) return slug
+  for (let n = 2; ; n++) {
+    const suffix = `-${n}`
+    const candidate = slug.slice(0, 64 - suffix.length).replace(/[-._]+$/, '') + suffix
+    if (!taken.has(candidate)) return candidate
+  }
+}
+
 export function isValidSlug(slug: string): boolean {
   return /^[a-z0-9][a-z0-9._-]{0,63}$/.test(slug)
 }

@@ -74,7 +74,7 @@ If `status` is still `running`, call `get_job { job_id, wait_seconds }` until it
 |---|---|---|
 | `list_projects` | — | `projects[]` |
 | `get_project` | `project` | project: id, name, slug, path, skeletonId/Version, features, choices, ports, setupStatus, exists, commands[] (key, label, run, long, primary, url, inputs, lastRun), setup[], running[], latestVersion, updateAvailable, translations |
-| `create_project` | `skeleton`, `name`, `version?` (or `"draft"` to test a skeleton draft end to end), `slug?`, `parent_dir?`, `git?`, `install?`, `features?` (`{name: bool}`), `choices?` (`{name: option}`, e.g. `{"docker": "full", "data": "local"}`), `agents_md?`, `spec_md?`, `claude_md?`, `brief?`, `wait_seconds?` | job; `result.project`, `result.setupStatus` |
+| `create_project` | `skeleton`, `name`, `version?` (or `"draft"` to test a skeleton draft end to end), `slug?` (unique; a derived slug that is taken gets `-2`, `-3`…), `parent_dir?`, `git?`, `install?`, `features?` (`{name: bool}`), `choices?` (`{name: option}`, e.g. `{"docker": "full", "data": "local"}`), `agents_md?`, `spec_md?`, `claude_md?`, `brief?`, `wait_seconds?` | job; `result.project`, `result.setupStatus` |
 | `import_project` | `path` | project |
 | `remove_project` | `project` | `{ removed, path }` — files are never deleted |
 | `run_project_command` | `project`, `command`, `inputs?` (`{NAME: value}` for commands with inputs), `wait_seconds?` | `run` (status, exitCode), `output[]`, `url` |

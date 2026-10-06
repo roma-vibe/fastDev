@@ -207,6 +207,9 @@ const ru: Record<string, string | [string, string, string]> = {
   'My new project': 'Мой новый проект',
   Slug: 'Slug',
   'Folder and package name.': 'Имя папки и пакета.',
+  'Another project already uses this slug': 'Этот slug уже занят другим проектом',
+  'Use either single or double quotes, not both':
+    'Используйте одинарные или двойные кавычки, но не оба вида сразу',
   'Use lowercase latin letters, digits, dashes, dots or underscores':
     'Только строчные латинские буквы, цифры, дефисы, точки и подчёркивания',
   Location: 'Расположение',

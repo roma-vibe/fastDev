@@ -127,6 +127,13 @@ impl Args {
         if self.items.is_empty() { None } else { Some(self.items.remove(0)) }
     }
 
+    /// Fails on arguments no option consumed; commands call it before they do anything.
+    fn finish(&mut self) {
+        if let Some(extra) = self.positional() {
+            fail(&format!("unexpected argument \"{extra}\""));
+        }
+    }
+
     fn require(&mut self, what: &str) -> String {
         self.positional().unwrap_or_else(|| fail(&format!("missing {what}")))
     }
@@ -187,7 +194,7 @@ fn main() {
     let command = args.require("command");
 
     let result = match command.as_str() {
-        "skeletons" => call(&core, "list_skeletons", json!({})).map(|v| {
+        "skeletons" => run(&core, "list_skeletons", json!({}), &mut args).map(|v| {
             for s in v["skeletons"].as_array().into_iter().flatten() {
                 println!(
                     "{:<24} {:<10} {:<28} {:<10} {}",
@@ -208,28 +215,33 @@ fn main() {
             }
             Value::Null
         }),
-        "sync" => call(&core, "sync_library", json!({})),
+        "sync" => run(&core, "sync_library", json!({}), &mut args),
         "preview" => {
             let id = args.require("skeleton id");
             let choices = parse_choices(args.values("--choice"));
             let seconds =
                 args.value("--for").map(|v| v.parse::<u64>().unwrap_or_else(|_| fail("--for expects seconds")));
             let version = args.value("--version");
-            let result = job(&core, "preview_skeleton", json!({ "id": id, "version": version, "choices": choices }))
-                .map(|result| {
-                    let preview = &result["preview"];
-                    eprintln!();
-                    for key in ["url", "path", "message"] {
-                        if let Some(value) = preview[key].as_str().filter(|v| !v.is_empty()) {
-                            eprintln!("{key}: {value}");
-                        }
+            let result = run_job(
+                &core,
+                "preview_skeleton",
+                json!({ "id": id, "version": version, "choices": choices }),
+                &mut args,
+            )
+            .map(|result| {
+                let preview = &result["preview"];
+                eprintln!();
+                for key in ["url", "path", "message"] {
+                    if let Some(value) = preview[key].as_str().filter(|v| !v.is_empty()) {
+                        eprintln!("{key}: {value}");
                     }
-                    if result["run"]["status"] == "running" {
-                        wait_for_preview(&core, &id, seconds);
-                    }
-                    Value::Null
-                });
-            let _ = call(&core, "stop_preview", json!({ "id": id }));
+                }
+                if result["run"]["status"] == "running" {
+                    wait_for_preview(&core, &id, seconds);
+                }
+                Value::Null
+            });
+            let _ = run(&core, "stop_preview", json!({ "id": id }), &mut args);
             if interrupted() {
                 eprintln!("Preview stopped.");
                 std::process::exit(130);
@@ -238,39 +250,42 @@ fn main() {
         }
         "add-source" => {
             let url = args.require("repository URL");
-            call(&core, "add_skeleton_source", json!({ "url": url }))
+            run(&core, "add_skeleton_source", json!({ "url": url }), &mut args)
         }
         "registry-init" => {
             let dir = PathBuf::from(args.require("folder"));
             let name = args.value("--name").unwrap_or_else(|| "fastDev skeletons".into());
+            args.finish();
             fastdev_core::index::init(&dir, &name).map(|()| json!({ "registry": dir })).map_err(|e| e.message)
         }
         "show" => {
             let id = args.require("skeleton id");
-            call(&core, "get_skeleton", json!({ "id": id, "target": args.value("--target") }))
+            run(&core, "get_skeleton", json!({ "id": id, "target": args.value("--target") }), &mut args)
         }
         "validate" => {
             if args.flag("--all") {
+                args.finish();
                 validate_all(&core)
             } else {
                 let id = args.require("skeleton id");
-                call(&core, "validate_skeleton", json!({ "id": id, "target": args.value("--target") })).and_then(|v| {
-                    if v["valid"].as_bool() == Some(true) {
-                        Ok(v)
-                    } else {
-                        Err(serde_json::to_string_pretty(&v).unwrap_or_default())
-                    }
-                })
+                run(&core, "validate_skeleton", json!({ "id": id, "target": args.value("--target") }), &mut args)
+                    .and_then(|v| {
+                        if v["valid"].as_bool() == Some(true) {
+                            Ok(v)
+                        } else {
+                            Err(serde_json::to_string_pretty(&v).unwrap_or_default())
+                        }
+                    })
             }
         }
         "verify" => {
             let id = args.require("skeleton id");
-            job(&core, "verify_skeleton", json!({ "id": id, "target": args.value("--target") }))
+            run_job(&core, "verify_skeleton", json!({ "id": id, "target": args.value("--target") }), &mut args)
         }
         "draft" => {
             let mode = args.require("mode (new, edit, fork)");
             let id = args.require("skeleton id");
-            call(
+            run(
                 &core,
                 "create_skeleton_draft",
                 json!({
@@ -281,11 +296,12 @@ fn main() {
                     "name": args.value("--name"),
                     "description": args.value("--description"),
                 }),
+                &mut args,
             )
         }
         "publish" => {
             let id = args.require("skeleton id");
-            call(
+            run(
                 &core,
                 "publish_skeleton",
                 json!({
@@ -296,31 +312,33 @@ fn main() {
                     "allow_unverified": args.flag("--allow-unverified"),
                     "replace": args.flag("--replace"),
                 }),
+                &mut args,
             )
         }
         "discard" => {
             let id = args.require("skeleton id");
-            call(&core, "discard_skeleton_draft", json!({ "id": id }))
+            run(&core, "discard_skeleton_draft", json!({ "id": id }), &mut args)
         }
         "outdated" => {
             let id = args.require("skeleton id");
-            job(&core, "check_skeleton_updates", json!({ "id": id, "target": args.value("--target") }))
+            run_job(&core, "check_skeleton_updates", json!({ "id": id, "target": args.value("--target") }), &mut args)
         }
         "update" => {
             let id = args.require("skeleton id");
             let packages: Vec<Value> =
                 args.values("--package").into_iter().map(|name| json!({ "name": name })).collect();
-            job(
+            run_job(
                 &core,
                 "apply_skeleton_updates",
                 json!({ "id": id, "packages": packages, "level": args.value("--level") }),
+                &mut args,
             )
         }
         "remove" => {
             let project = args.require("project (id, slug or path)");
-            call(&core, "remove_project", json!({ "project": project }))
+            run(&core, "remove_project", json!({ "project": project }), &mut args)
         }
-        "projects" => call(&core, "list_projects", json!({})).map(|v| {
+        "projects" => run(&core, "list_projects", json!({}), &mut args).map(|v| {
             for p in v["projects"].as_array().into_iter().flatten() {
                 println!(
                     "{:<14} {:<24} {:<18} {}",
@@ -340,7 +358,7 @@ fn main() {
             let skeleton = args.require("skeleton id");
             let features: BTreeMap<String, bool> = args.values("--feature").into_iter().map(|f| (f, true)).collect();
             let choices = parse_choices(args.values("--choice"));
-            job(
+            run_job(
                 &core,
                 "create_project",
                 json!({
@@ -358,6 +376,7 @@ fn main() {
                     "claude_md": !args.flag("--no-claude"),
                     "brief": args.value("--brief"),
                 }),
+                &mut args,
             )
         }
         "call" => {
@@ -366,13 +385,12 @@ fn main() {
                 .positional()
                 .map(|text| serde_json::from_str(&text).unwrap_or_else(|err| fail(&format!("invalid JSON: {err}"))))
                 .unwrap_or_else(|| json!({}));
+            args.finish();
             core.call(&method, arguments, Caller::Cli).map_err(|err| format!("[{}] {}", err.code.as_str(), err.message))
         }
         other => fail(&format!("unknown command \"{other}\"")),
     };
-    if let Some(extra) = args.positional() {
-        fail(&format!("unexpected argument \"{extra}\""));
-    }
+    args.finish();
 
     match result {
         Ok(Value::Null) => {}
@@ -392,6 +410,18 @@ fn parse_choices(pairs: Vec<String>) -> BTreeMap<String, String> {
             None => fail(&format!("--choice expects name=option, got \"{pair}\"")),
         })
         .collect()
+}
+
+/// [`call`] for a command, after checking that every argument was consumed.
+fn run(core: &Arc<Core>, method: &str, arguments: Value, args: &mut Args) -> Result<Value, String> {
+    args.finish();
+    call(core, method, arguments)
+}
+
+/// [`job`] for a command, after checking that every argument was consumed.
+fn run_job(core: &Arc<Core>, method: &str, arguments: Value, args: &mut Args) -> Result<Value, String> {
+    args.finish();
+    job(core, method, arguments)
 }
 
 fn call(core: &Arc<Core>, method: &str, arguments: Value) -> Result<Value, String> {

@@ -179,6 +179,10 @@ pub fn resolve_slug(options: &CreateOptions) -> Result<String> {
     if name.chars().count() > 80 {
         return Err(Error::invalid("project name must be at most 80 characters"));
     }
+    // `.env` has no quoting that every loader reads the same way for a value with both quote kinds.
+    if name.contains('\'') && name.contains('"') {
+        return Err(Error::invalid("project name must not contain both ' and \" quotes"));
+    }
     let slug = match options.slug.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         Some(slug) => slug.to_string(),
         None => util::slugify(name),
@@ -624,6 +628,9 @@ options.react = { label = "React" }
     fn rejects_bad_slugs() {
         let mut opts = options(false);
         opts.slug = Some("Bad Slug".into());
+        assert!(resolve_slug(&opts).is_err());
+        opts.slug = None;
+        opts.name = "O'Brien \"Shop\"".into();
         assert!(resolve_slug(&opts).is_err());
         opts.name = "  ".into();
         assert!(resolve_slug(&opts).is_err());

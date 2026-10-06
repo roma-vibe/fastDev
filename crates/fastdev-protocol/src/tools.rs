@@ -157,7 +157,7 @@ pub fn definitions() -> Vec<ToolDefinition> {
                     "skeleton": { "type": "string", "description": "Skeleton id, e.g. node-vue." },
                     "version": { "type": "string", "description": "Published version, or \"draft\" to test the workspace clone end to end. Default: latest." },
                     "name": { "type": "string", "description": "Human-readable project name (any language)." },
-                    "slug": { "type": "string", "description": "Folder and package name. Default: derived from name." },
+                    "slug": { "type": "string", "description": "Folder and package name; must not be used by another project. Default: derived from name (with a -2, -3… suffix when taken)." },
                     "parent_dir": { "type": "string", "description": "Absolute folder to create the project in. Default: the projects folder from settings." },
                     "git": { "type": "boolean", "description": "Initialise git and commit (default true)." },
                     "install": { "type": "boolean", "description": "Run setup steps such as npm install (default true)." },

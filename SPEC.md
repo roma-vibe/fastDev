@@ -288,8 +288,8 @@ For skeletons with an `[updates]` ecosystem:
 | Field | Default | Notes |
 |---|---|---|
 | Skeleton + version | latest published | any published version can be chosen |
-| Project name | — | required, ≤ 80 chars, any language |
-| Slug | derived from the name | ASCII, lowercase, `-`; Cyrillic is transliterated (`Мой магазин` → `moi-magazin`); editable |
+| Project name | — | required, ≤ 80 chars, any language; not both `'` and `"` (no `.env` quoting reads the same in every loader) |
+| Slug | derived from the name | ASCII, lowercase, `-`; Cyrillic is transliterated (`Мой магазин` → `moi-magazin`); editable; unique among registered projects (it also names Docker resources): a derived slug that is taken gets `-2`, `-3`…, a taken slug typed by the owner is an error |
 | Parent folder | settings → projects folder | final path is `<parent>/<slug>`; must not exist or must be empty |
 | Git | on | `git init -b main` + initial commit |
 | Install dependencies | on | runs `[[setup]]` steps |
