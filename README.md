@@ -52,6 +52,7 @@ Every skeleton lives in its own repository (`roma-vibe/fastdev-<id>`); versions 
 | Skeleton | What you get |
 |---|---|
 | `node-vue` | Fastify 5 API + Vue 3 SPA, SQLite (`node:sqlite`), Tailwind CSS 4, Pinia, Vue Router, TypeScript, Vitest |
+| `rust-vue-microservices` | Rust microservices (axum, sqlx/SQLite) behind an edge proxy + modular Vue 3 SPA, liquid glass design, RU/EN, light/dark, optional accounts |
 | `node-cli` | TypeScript command-line tool with commander, bundled by tsdown, ready for npm |
 | `rust-cli` | Single-binary Rust command-line tool with clap, anyhow and tracing |
 | `tauri-vue` | Native macOS desktop app: Tauri 2 with a Rust core and SQLite, Vue 3 + Tailwind CSS 4 interface |

@@ -561,7 +561,7 @@ Implementation notes (0.1.0):
 
 ## 15. Future
 
-- Skeletons (published today: node-vue, node-cli, rust-cli, tauri-vue, telegram-bot, laravel-inertia, chrome-extensions, threejs-voxel-pixel, threejs-voxel, phaser-2d, flutter-app, react-native-expo, rust-macos-widget): Rust web (Axum), Python (FastAPI, CLI).
+- Skeletons (published today: node-vue, node-cli, rust-cli, tauri-vue, telegram-bot, laravel-inertia, chrome-extensions, threejs-voxel-pixel, threejs-voxel, phaser-2d, flutter-app, react-native-expo, rust-macos-widget, rust-vue-microservices): Rust web (Axum), Python (FastAPI, CLI).
 - Update adapters for cargo, composer, pip.
 - Diff between skeleton versions and guided upgrade of existing projects.
 - Library sync helpers (pull/push of the library repository from the app).
