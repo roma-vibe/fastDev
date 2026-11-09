@@ -148,9 +148,11 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         bridge_path: bridge_path(),
         workspace_override: None,
         registries_override: None,
+        port_claims_dir: fastdev_core::port_claims::shared_dir(),
     };
     let core = Core::new(config, Arc::new(TauriSink(handle.clone()))).map_err(|err| err.message)?;
     core.watch_library();
+    core.publish_ports_in_background();
     core.sync_in_background();
 
     let (control, control_error) = match ControlServer::start(core.clone(), &fastdev_protocol::socket_path()) {

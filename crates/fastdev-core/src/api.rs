@@ -24,6 +24,7 @@ use crate::generator::{self, CreateOptions, Source};
 use crate::jobs::{Job, JobCtx, JobManager};
 use crate::library::{DraftMeta, FILES_DIR, Library, Target};
 use crate::manifest::Manifest;
+use crate::port_claims;
 use crate::project_meta::ProjectMeta;
 use crate::registry::{ProjectRecord, Registry, SetupStatus};
 use crate::runner::{RunInfo, Runner};
@@ -48,6 +49,10 @@ pub struct CoreConfig {
     pub workspace_override: Option<PathBuf>,
     /// Registries that win over settings (CLI `--registry`).
     pub registries_override: Option<Vec<String>>,
+    /// Folder of the shared port lists (`port_claims::shared_dir`): new projects get ports no
+    /// list has, and the ports of the registered projects are published there. `None` leaves
+    /// it alone (tests, isolated data folders).
+    pub port_claims_dir: Option<PathBuf>,
 }
 
 pub struct Core {
@@ -176,6 +181,14 @@ impl Core {
         Ok(core)
     }
 
+    /// Publishes the ports of the registered projects (`publish_ports`) on a thread of its own:
+    /// it reads the projects' `.env` files, which may sit in a folder macOS asks about after an
+    /// update (Documents…), and the start of the app must not wait for that answer.
+    pub fn publish_ports_in_background(self: &Arc<Self>) {
+        let core = Arc::clone(self);
+        std::thread::spawn(move || core.publish_ports());
+    }
+
     fn emit(&self, event: Event) {
         self.hub.sink().emit(event);
     }
@@ -229,11 +242,26 @@ impl Core {
         shell::stop_all();
     }
 
-    /// Ports of registered projects and of projects being created.
+    /// Ports of registered projects, of projects being created, and those the other tools on
+    /// this Mac gave their projects (`port_claims`).
     fn taken_ports(&self) -> Result<HashSet<u16>> {
         let mut taken = self.registry.taken_ports()?;
         taken.extend(self.creating.lock().expect("creating").values().flatten());
+        if let Some(dir) = &self.config.port_claims_dir {
+            taken.extend(port_claims::taken_by_others(dir));
+        }
         Ok(taken)
+    }
+
+    /// Publishes the ports of the registered projects in the shared port lists, when set.
+    fn publish_ports(&self) {
+        let Some(dir) = &self.config.port_claims_dir else {
+            return;
+        };
+        let published = self.registry.list().and_then(|projects| port_claims::publish(dir, &projects));
+        if let Err(err) = published {
+            log::warn!("cannot publish the ports of the projects: {}", err.message);
+        }
     }
 
     /// Watches the workspace and local registries and emits `LibraryChanged` (debounced).
@@ -334,6 +362,7 @@ impl Core {
                 self.stop_project_runs(&record.id);
                 self.registry.remove(&record.id)?;
                 self.runner.forget_project(&record.id);
+                self.publish_ports();
                 self.emit(Event::ProjectsChanged);
                 Ok(json!({ "removed": true, "path": record.path, "note": "Files on disk were not touched." }))
             }
@@ -681,6 +710,7 @@ impl Core {
                 }
                 self.registry.remove(&record.id)?;
                 self.runner.forget_project(&record.id);
+                self.publish_ports();
                 self.emit(Event::ProjectsChanged);
                 Ok(json!({ "deleted": true }))
             }
@@ -1366,6 +1396,7 @@ impl Core {
             opened_at: Some(util::now_rfc3339()),
         };
         self.registry.insert(&record)?;
+        self.publish_ports();
         self.emit(Event::ProjectsChanged);
         Ok(json!({ "project": self.project_view(record), "setupStatus": setup_status }))
     }
@@ -1443,6 +1474,7 @@ impl Core {
             opened_at: Some(util::now_rfc3339()),
         };
         self.registry.insert(&record)?;
+        self.publish_ports();
         self.emit(Event::ProjectsChanged);
         Ok(self.project_view(record))
     }
@@ -1702,6 +1734,7 @@ mod tests {
             bridge_path: None,
             workspace_override: Some(root.join("workspace")),
             registries_override: Some(Vec::new()),
+            port_claims_dir: None,
         };
         Core::new(config, Arc::new(crate::events::NullSink)).unwrap()
     }

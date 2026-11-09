@@ -311,7 +311,7 @@ Phase A — materialise (on failure the created folder is removed):
 2. Copy files (skipping disabled features and agent files), rename `_gitignore`.
 3. Render `*.tmpl` files.
 4. Apply `[[set]]` edits.
-5. Allocate ports: first free port ≥ the manifest value that is not used by another registered project and can be bound.
+5. Allocate ports: first free port ≥ the manifest value that is not used by another registered project, not listed by another tool in the shared port lists (below), and can be bound.
 6. Write `.env.example` (manifest `[env]` + `[ports]` values over the skeleton's `.env.example`, secrets empty) and `.env` (same + generated secrets).
 7. Write `CLAUDE.md` when enabled.
 8. Write `.fastdev.toml` (project metadata, skeleton origin, enabled features, a copy of the commands).
@@ -553,6 +553,7 @@ Implementation notes (0.1.0):
 
 - Output events (`jobOutput`, `runOutput`) carry the absolute index of their first line; the UI merges them with fetched logs by position.
 - Ports are checked on IPv4 and IPv6 (Vite binds `::1`).
+- Shared port lists (`fastdev-core/src/port_claims.rs`): `~/Library/Application Support/dev-ports/` holds one `<owner>.json` per tool that gives projects ports (`{ version: 1, owner, updatedAt, reserved: [[first, last]…], claims: [{ port, project, path, key }] }`). fastDev skips every port another file lists (and their reserved ranges under 1000 ports) when it allocates, and writes `fastdev.json` with the own port keys of its registered projects (not `POSTGRES_PORT`, `REDIS_PORT` and other servers a project only connects to; the value in the project's `.env` wins over the registry's) at start (on a thread of its own: reading the projects' `.env` files may wait for a macOS folder permission) and after a project is created, imported, removed or deleted. My Simple Shell writes `my-simple-shell.json` and moves a clashing port of a project before it starts. Off with `FASTDEV_HOME` (isolated data folders) and in tests; unreadable files are skipped.
 - The control socket falls back to a per-user temp path when the data folder path is too long for a Unix socket.
 - The npm update adapter uses `npm outdated --json --long` at the root (it covers the root and every workspace) and `dependedByLocation` for the workspace folder.
 - "Delete from disk" refuses the root, the home folder and its direct children.

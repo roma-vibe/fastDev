@@ -13,6 +13,7 @@ pub mod index;
 pub mod jobs;
 pub mod library;
 pub mod manifest;
+pub mod port_claims;
 pub mod project_meta;
 pub mod registry;
 pub mod render;

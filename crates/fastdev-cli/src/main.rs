@@ -189,6 +189,7 @@ fn main() {
         bridge_path: None,
         workspace_override: workspace.map(|p| p.canonicalize().unwrap_or(p)),
         registries_override: (!registries.is_empty()).then(|| registries.into_iter().map(absolute).collect()),
+        port_claims_dir: fastdev_core::port_claims::shared_dir(),
     };
     let core = Core::new(config, Arc::new(StderrSink)).unwrap_or_else(|err| fail(&err.message));
     let command = args.require("command");
